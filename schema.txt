@@ -1,0 +1,9 @@
+User
+username UNIQUE CHAR(200)
+password CHAR(64)
+joined_at TIMESTAMP
+
+Saleh
+name CHAR(200)
+password UNIQUE CHAR(10)
+phoneNumber INTEGER
