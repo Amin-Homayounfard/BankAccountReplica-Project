@@ -1,6 +1,7 @@
 from os import path
-from re import sub
+from re import sub, finditer, split
 from collections import namedtuple, defaultdict
+from functools import reduce
 
 
 class Database:
@@ -71,18 +72,136 @@ class Database:
                     return False
         return True
 
+    def ModifyConditions(self, conditions):
+        quotationMarkIndices = [m.start() for m in finditer('"', conditions)]
+        conditions = list(conditions)
+        for i, index in enumerate(quotationMarkIndices):
+            if i % 2 == 0:
+                conditions[index] = "("
+            else:
+                conditions[index] = ")"
+
+        conditions = "".join(conditions)
+        modifiedConditions = split(r"(?<=\))OR|(?<=\))AND", conditions)
+        return modifiedConditions
+
+    def FindCorrespondingData(self, tableName, conditions):
+        filename = tableName + ".txt"
+        conditions = conditions.replace(" ", "")
+        modifiedConditions = self.ModifyConditions(conditions)
+        collectedResults = []
+        with open(filename, "r") as f:
+            columns = f.readline().split()
+            lines = f.readlines()
+            for line in lines:
+                line = line.strip()
+                replacements = dict()
+                for condition in modifiedConditions:
+                    condition = sub("[()]", "", condition)
+                    fieldName, fieldValue = split(r"==|!=", condition)
+                    toReadColumnIndex = columns.index(fieldName)
+                    if (
+                        line.split()[toReadColumnIndex] == fieldValue
+                        and "==" in condition
+                    ):
+                        replacements[f'{fieldName}=="{fieldValue}"'] = "1"
+                    elif (
+                        line.split()[toReadColumnIndex] == fieldValue
+                        and "!=" in condition
+                    ):
+                        replacements[f'{fieldName}!="{fieldValue}"'] = "0"
+                    elif (
+                        line.split()[toReadColumnIndex] != fieldValue
+                        and "==" in condition
+                    ):
+                        replacements[f'{fieldName}=="{fieldValue}"'] = "0"
+                    elif (
+                        line.split()[toReadColumnIndex] != fieldValue
+                        and "!=" in condition
+                    ):
+                        replacements[f'{fieldName}!="{fieldValue}"'] = "1"
+
+                replacedConditions = reduce(
+                    lambda x, y: x.replace(*y), replacements.items(), conditions
+                )
+                replacedConditions = replacedConditions.replace("AND", " and ").replace(
+                    "OR", " or "
+                )
+                if eval(replacedConditions):
+                    collectedResults.append(line.strip())
+        return collectedResults
+
+    def CheckFieldNamesValidity(self, validFields, conditions):
+        conditions = conditions.replace(" ", "")
+        modifiedConditions = self.ModifyConditions(conditions)
+        fields = []
+        for condition in modifiedConditions:
+            condition = sub("[()]", "", condition)
+            fieldName = split(r"==|!=", condition)[0]
+            fields.append(fieldName)
+        for field in fields:
+            if not field in [field.fieldName for field in validFields]:
+                print(f'There is no field with name "{field}"')
+                return False
+        return True
+
     def Insert(self, tableName, values):
         filename = tableName + ".txt"
         if tableName in self.tables:
+            fields = self.tables[tableName]
             if self.CheckInsertConditions(fields, values, tableName):
                 with open(filename, "a") as f:
                     f.write("id " + " ".join(values) + "\n")
         else:
             print(f"There is no table with name {tableName}.")
 
+    def Delete(self, tableName, conditions):
+        filename = tableName + ".txt"
+        if tableName in self.tables:
+            fields = self.tables[tableName]
+            if self.CheckFieldNamesValidity(fields, conditions):
+                collectedResults = self.FindCorrespondingData(tableName, conditions)
+                with open(filename, "r+") as f:
+                    lines = f.readlines()
+                    f.seek(0)
+                    for line in lines:
+                        if not line.strip() in collectedResults:
+                            f.write(line)
+                    f.truncate()
+        else:
+            print(f"There is no table with name {tableName}.")
+
+    def Select(self, tableName, conditions):
+        if tableName in self.tables:
+            fields = self.tables[tableName]
+            if self.CheckFieldNamesValidity(fields, conditions):
+                collectedResults = self.FindCorrespondingData(conditions)
+                return collectedResults
+        else:
+            print(f"There is no table with name {tableName}.")
+
+    def Update(self, tableName, values, conditions):
+        filename = tableName + ".txt"
+        if tableName in self.tables:
+            fields = self.tables[tableName]
+            if self.CheckFieldNamesValidity(
+                fields, conditions
+            ) and self.CheckInsertConditions(fields, values, tableName):
+                collectedResults = self.FindCorrespondingData(conditions)
+                with open(filename, "r+") as f:
+                    lines = f.readlines()
+                    f.seek(0)
+                    for line in lines:
+                        if line.strip() in collectedResults:
+                            f.write("id " + " ".join(values) + "\n")
+                        else:
+                            f.write(line)
+                    f.truncate()
+        else:
+            print(f"There is no table with name {tableName}.")
+
 
 db = Database()
-
 while True:
     instruction = list(input("$ ").split())
     if instruction[0] == "INSERT":
