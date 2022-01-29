@@ -7,7 +7,7 @@ from functools import reduce
 class Database:
     schemaFilename = "schema.txt"
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.tables = defaultdict(list)
         try:
             self.ExtractTablesData()
@@ -50,6 +50,9 @@ class Database:
                     f.write(f'id {" ".join(fieldNames)}\n')
 
     def CheckInsertConditions(self, fields, values, tableName):
+        if not len(fields) == len(values):
+            print("number of values and field must be equal.")
+            return False
         for i, field in enumerate(fields):
             fieldValue = values[i]
             if field.isUnique:
@@ -62,17 +65,36 @@ class Database:
             if field.fieldType == "INTEGER" and not fieldValue.isdigit():
                 print(f"{fieldValue} must be an integer.")
                 return False
-            elif "CHAR" in field.fieldType and not fieldValue.isalpha():
-                print(f"{fieldValue} must be characters.")
-                return False
-            elif "CHAR" in field.fieldType and fieldValue.isalpha():
+            elif "CHAR" in field.fieldType:
                 legalCount = int(sub("[()]", "", field.fieldType.replace("CHAR", "")))
                 if len(fieldValue) > legalCount:
                     print(f"{fieldValue}'s number of characters exceeded {legalCount}.")
                     return False
+            elif field.fieldType == "BOOLEAN" and not (
+                fieldValue == "True" or fieldValue == "False"
+            ):
+                print("Only True/False can be used as boolean values.")
+                return False
+            elif field.fieldType == "TIMESTAMP":
+                if len(fieldValue.split("/")) != 3:
+                    print(
+                        "Timestamp type must have the following structure: month/day/year"
+                    )
+                    return False
+                month, day, year = fieldValue.split("/")
+                if not month.isdigit() or not 1 <= int(month) <= 12:
+                    print("Month value must be a digit between 1 to 12")
+                    return False
+                if not day.isdigit() or not 1 <= int(day) <= 30:
+                    print("Day value must be a digit between 1 to 31")
+                    return False
+                if not year.isdigit():
+                    print("Year value must be a digit")
+                    return False
         return True
 
     def ModifyConditions(self, conditions):
+        conditions = conditions.replace(" ", "")
         quotationMarkIndices = [m.start() for m in finditer('"', conditions)]
         conditions = list(conditions)
         for i, index in enumerate(quotationMarkIndices):
@@ -85,10 +107,8 @@ class Database:
         modifiedConditions = split(r"(?<=\))OR|(?<=\))AND", conditions)
         return modifiedConditions
 
-    def FindCorrespondingData(self, tableName, conditions):
+    def FindCorrespondingData(self, tableName, modifiedConditions, conditions):
         filename = tableName + ".txt"
-        conditions = conditions.replace(" ", "")
-        modifiedConditions = self.ModifyConditions(conditions)
         collectedResults = []
         with open(filename, "r") as f:
             columns = f.readline().split()
@@ -136,10 +156,8 @@ class Database:
         return collectedResults
 
     def CheckFieldNamesValidity(self, validFields, conditions):
-        conditions = conditions.replace(" ", "")
-        modifiedConditions = self.ModifyConditions(conditions)
         fields = []
-        for condition in modifiedConditions:
+        for condition in conditions:
             condition = sub("[()]", "", condition)
             fieldName = split(r"==|!=", condition)[0]
             fields.append(fieldName)
@@ -157,15 +175,14 @@ class Database:
         if instruction[-1] != ";":
             print(f'Instruction must ends with ";".')
             return False
-        instruction = instruction[:-1]
-        instruction = instruction.lower().split()
-        if instruction[0] == "insert":
-            if not instruction[1] == "into":
+        instruction = instruction[:-1].split()
+        if instruction[0] == "INSERT":
+            if not instruction[1] == "INTO":
                 print(
                     f"Insert instruction must have the following structure:\n{insertStructure}"
                 )
                 return False
-            if not instruction[-2] == "values":
+            if not instruction[-2] == "VALUES":
                 print(
                     f"Insert instruction must have the following structure:\n{insertStructure}"
                 )
@@ -175,19 +192,19 @@ class Database:
                 print(f"Field values must be wraped in parentheses.")
                 return False
 
-        elif instruction[0] == "select":
-            if not instruction[1] == "from":
+        elif instruction[0] == "SELECT":
+            if not instruction[1] == "FROM":
                 print(
                     f"Select instruction must have the following structure:\n{selectStructure}"
                 )
                 return False
-            if not instruction[3] == "where":
+            if not instruction[3] == "WHERE":
                 print(
                     f"Select instruction must have the following structure:\n{selectStructure}"
                 )
                 return False
             instruction = " ".join(instruction)
-            conditionParts = instruction.split("where")[1]
+            conditionParts = instruction.split("WHERE")[1]
             if not len(findall("\(", conditionParts)) == len(
                 findall("\)", conditionParts)
             ):
@@ -208,23 +225,23 @@ class Database:
                         print("Each field value must be wraped in quotation marks.")
                         return False
                 else:
-                    if not part == "and" and not part == "or":
-                        print("Only AND/OR can be used as logical expretion.")
+                    if not part == "AND" and not part == "OR":
+                        print("Only AND/OR can be used as logical expretions.")
                         return False
 
-        elif instruction[0] == "delete":
-            if not instruction[1] == "from":
+        elif instruction[0] == "DELETE":
+            if not instruction[1] == "FROM":
                 print(
                     f"Delete instruction must have the following structure:\n{deleteStructure}"
                 )
                 return False
-            if not instruction[3] == "where":
+            if not instruction[3] == "WHERE":
                 print(
                     f"Delete instruction must have the following structure:\n{deleteStructure}"
                 )
                 return False
             instruction = " ".join(instruction)
-            conditionParts = instruction.split("where")[1]
+            conditionParts = instruction.split("WHERE")[1]
             if not len(findall("\(", conditionParts)) == len(
                 findall("\)", conditionParts)
             ):
@@ -245,25 +262,25 @@ class Database:
                         print("Each field value must be wraped in quotation marks.")
                         return False
                 else:
-                    if not part == "and" and not part == "or":
+                    if not part == "AND" and not part == "OR":
                         print("Only AND/OR can be used as logical expretion.")
                         return False
 
-        elif instruction[0] == "update":
-            if not instruction[2] == "where":
+        elif instruction[0] == "UPDATE":
+            if not instruction[2] == "WHERE":
                 print(
                     f"Update instruction must have the following structure:\n{updateStructure}"
                 )
                 return False
-            if not instruction[-2] == "values":
+            if not instruction[-2] == "VALUES":
                 print(
                     f"Update instruction must have the following structure:\n{updateStructure}"
                 )
                 return False
             instruction = " ".join(instruction)
             conditionParts, fieldValues = (
-                split(r"where|values", instruction)[1],
-                split(r"where|values", instruction)[2].replace(" ", ""),
+                split(r"WHERE|VALUES", instruction)[1],
+                split(r"WHERE|VALUES", instruction)[2].replace(" ", ""),
             )
             if not len(findall("\(", conditionParts)) == len(
                 findall("\)", conditionParts)
@@ -284,32 +301,37 @@ class Database:
                         print("Each field value must be wraped in quotation marks.")
                         return False
                 else:
-                    if not part == "and" and not part == "or":
+                    if not part == "AND" and not part == "OR":
                         print("Only AND/OR can be used as logical expretion.")
                         return False
             if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
                 print(f"Field values must be wraped in parentheses.")
                 return False
+        else:
+            print(
+                "Legal instructions must begining with INSERT, SELECT, DELETE or UPDATE."
+            )
+            return False
         return True
 
     def FollowInstruction(self, instruction):
         instruction = instruction[:-1].split()
-        if instruction[0].lower() == "insert":
+        if instruction[0] == "INSERT":
             tableName = instruction[2]
             fieldValues = sub("[()]", "", instruction[-1]).split(",")
             self.Insert(tableName, fieldValues)
-        elif instruction[0].lower() == "select":
+        elif instruction[0] == "SELECT":
             tableName = instruction[2]
             conditions = " ".join(instruction[4:])
             print(self.Select(tableName, conditions))
-        elif instruction[0].lower() == "delete":
+        elif instruction[0] == "DELETE":
             tableName = instruction[2]
             conditions = " ".join(instruction[4:])
             self.Delete(tableName, conditions)
-        elif instruction[0].lower() == "update":
+        elif instruction[0] == "UPDATE":
             tableName = instruction[1]
             conditions = " ".join(instruction[3:-2])
-            fieldValues = instruction[-1]
+            fieldValues = sub("[()]", "", instruction[-1]).split(",")
             self.Update(tableName, fieldValues, conditions)
 
     def Insert(self, tableName, values):
@@ -328,9 +350,8 @@ class Database:
     def Delete(self, tableName, conditions):
         filename = tableName + ".txt"
         if tableName in self.tables:
-            fields = self.tables[tableName]
-            if self.CheckFieldNamesValidity(fields, conditions):
-                collectedResults = self.FindCorrespondingData(tableName, conditions)
+            collectedResults = self.Select(tableName, conditions)
+            if collectedResults:
                 with open(filename, "r+") as f:
                     firstLine = f.readline()
                     lines = f.readlines()
@@ -349,8 +370,11 @@ class Database:
     def Select(self, tableName, conditions):
         if tableName in self.tables:
             fields = self.tables[tableName]
-            if self.CheckFieldNamesValidity(fields, conditions):
-                collectedResults = self.FindCorrespondingData(tableName, conditions)
+            modifiedConditions = self.ModifyConditions(conditions)
+            if self.CheckFieldNamesValidity(fields, modifiedConditions):
+                collectedResults = self.FindCorrespondingData(
+                    tableName, modifiedConditions, conditions
+                )
                 return collectedResults
         else:
             print(f"There is no table with name {tableName}.")
@@ -359,10 +383,10 @@ class Database:
         filename = tableName + ".txt"
         if tableName in self.tables:
             fields = self.tables[tableName]
-            if self.CheckFieldNamesValidity(
-                fields, conditions
-            ) and self.CheckInsertConditions(fields, values, tableName):
-                collectedResults = self.FindCorrespondingData(tableName, conditions)
+            collectedResults = self.Select(tableName, conditions)
+            if collectedResults and self.CheckInsertConditions(
+                fields, values, tableName
+            ):
                 with open(filename, "r+") as f:
                     firstLine = f.readline()
                     lines = f.readlines()

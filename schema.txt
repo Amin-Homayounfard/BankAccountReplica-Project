@@ -1,9 +1,5 @@
-User
+user
 username UNIQUE CHAR(200)
-password CHAR(64)
+password CHAR(12)
 joined_at TIMESTAMP
-
-Test
-name CHAR(200)
-password UNIQUE CHAR(10)
-phoneNumber INTEGER
+haveAccount BOOLEAN
