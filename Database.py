@@ -1,5 +1,5 @@
 from os import path
-from re import sub, finditer, split
+from re import sub, finditer, split, findall
 from collections import namedtuple, defaultdict
 from functools import reduce
 
@@ -47,7 +47,7 @@ class Database:
                 for field in fields:
                     fieldNames.append(field.fieldName)
                 with open(fileName, "a") as f:
-                    f.write("id " + " ".join(fieldNames) + "\n")
+                    f.write(f'id {" ".join(fieldNames)}\n')
 
     def CheckInsertConditions(self, fields, values, tableName):
         for i, field in enumerate(fields):
@@ -127,8 +127,12 @@ class Database:
                 replacedConditions = replacedConditions.replace("AND", " and ").replace(
                     "OR", " or "
                 )
-                if eval(replacedConditions):
-                    collectedResults.append(line.strip())
+                try:
+                    if eval(replacedConditions):
+                        collectedResults.append(line.strip())
+                except Exception as error:
+                    print(f"{error} error is happened.")
+                    return
         return collectedResults
 
     def CheckFieldNamesValidity(self, validFields, conditions):
@@ -145,13 +149,179 @@ class Database:
                 return False
         return True
 
+    def CheckInstructionValidity(self, instruction):
+        insertStructure = "INSERT INTO <table_name> VALUES (<field1_value>,<field2_value>,<field3_value>);"
+        selectStructure = 'SELECT FROM <table_name> WHERE <field_name>=="<field_value>" OR <field_name>=="<field_value>";'
+        deleteStructure = 'DELETE FROM <table_name> WHERE <field_name>=="<field_value>" OR <field_name>=="<field_value>";'
+        updateStructure = 'UPDATE <table_name> WHERE <field_name>=="<field_value>" OR <field_name>=="<field_value>" VALUES (<field1_value>,<field2_value>,<field3_value>);'
+        if instruction[-1] != ";":
+            print(f'Instruction must ends with ";".')
+            return False
+        instruction = instruction[:-1]
+        instruction = instruction.lower().split()
+        if instruction[0] == "insert":
+            if not instruction[1] == "into":
+                print(
+                    f"Insert instruction must have the following structure:\n{insertStructure}"
+                )
+                return False
+            if not instruction[-2] == "values":
+                print(
+                    f"Insert instruction must have the following structure:\n{insertStructure}"
+                )
+                return False
+            fieldValues = instruction[-1]
+            if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
+                print(f"Field values must be wraped in parentheses.")
+                return False
+
+        elif instruction[0] == "select":
+            if not instruction[1] == "from":
+                print(
+                    f"Select instruction must have the following structure:\n{selectStructure}"
+                )
+                return False
+            if not instruction[3] == "where":
+                print(
+                    f"Select instruction must have the following structure:\n{selectStructure}"
+                )
+                return False
+            instruction = " ".join(instruction)
+            conditionParts = instruction.split("where")[1]
+            if not len(findall("\(", conditionParts)) == len(
+                findall("\)", conditionParts)
+            ):
+                print("Condition section parentheses are unbalanced.")
+                return False
+            for part in conditionParts.split():
+                part = sub("[()]", "", part)
+                part = part.replace(" ", "")
+                if "==" in part or "!=" in part:
+                    condition = split(r"==|!=", part)
+                    if not len(condition) == 2:
+                        print(
+                            f"Select instruction must have the following structure:\n{selectStructure}"
+                        )
+                        return False
+                    fieldValue = condition[-1]
+                    if not fieldValue.startswith('"') or not fieldValue.endswith('"'):
+                        print("Each field value must be wraped in quotation marks.")
+                        return False
+                else:
+                    if not part == "and" and not part == "or":
+                        print("Only AND/OR can be used as logical expretion.")
+                        return False
+
+        elif instruction[0] == "delete":
+            if not instruction[1] == "from":
+                print(
+                    f"Delete instruction must have the following structure:\n{deleteStructure}"
+                )
+                return False
+            if not instruction[3] == "where":
+                print(
+                    f"Delete instruction must have the following structure:\n{deleteStructure}"
+                )
+                return False
+            instruction = " ".join(instruction)
+            conditionParts = instruction.split("where")[1]
+            if not len(findall("\(", conditionParts)) == len(
+                findall("\)", conditionParts)
+            ):
+                print("Condition section parentheses are unbalanced.")
+                return False
+            for part in conditionParts.split():
+                part = sub("[()]", "", part)
+                part = part.replace(" ", "")
+                if "==" in part or "!=" in part:
+                    condition = split(r"==|!=", part)
+                    if not len(condition) == 2:
+                        print(
+                            f"Select instruction must have the following structure:\n{deleteStructure}"
+                        )
+                        return False
+                    fieldValue = condition[-1]
+                    if not fieldValue.startswith('"') or not fieldValue.endswith('"'):
+                        print("Each field value must be wraped in quotation marks.")
+                        return False
+                else:
+                    if not part == "and" and not part == "or":
+                        print("Only AND/OR can be used as logical expretion.")
+                        return False
+
+        elif instruction[0] == "update":
+            if not instruction[2] == "where":
+                print(
+                    f"Update instruction must have the following structure:\n{updateStructure}"
+                )
+                return False
+            if not instruction[-2] == "values":
+                print(
+                    f"Update instruction must have the following structure:\n{updateStructure}"
+                )
+                return False
+            instruction = " ".join(instruction)
+            conditionParts, fieldValues = (
+                split(r"where|values", instruction)[1],
+                split(r"where|values", instruction)[2].replace(" ", ""),
+            )
+            if not len(findall("\(", conditionParts)) == len(
+                findall("\)", conditionParts)
+            ):
+                print("Condition section parentheses are unbalanced.")
+                return False
+            for part in conditionParts.split():
+                part = sub("[()]", "", part)
+                if "==" in part or "!=" in part:
+                    condition = split(r"==|!=", part)
+                    if not len(condition) == 2:
+                        print(
+                            f"Select instruction must have the following structure:\n{updateStructure}"
+                        )
+                        return False
+                    fieldValue = condition[-1]
+                    if not fieldValue.startswith('"') or not fieldValue.endswith('"'):
+                        print("Each field value must be wraped in quotation marks.")
+                        return False
+                else:
+                    if not part == "and" and not part == "or":
+                        print("Only AND/OR can be used as logical expretion.")
+                        return False
+            if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
+                print(f"Field values must be wraped in parentheses.")
+                return False
+        return True
+
+    def FollowInstruction(self, instruction):
+        instruction = instruction[:-1].split()
+        if instruction[0].lower() == "insert":
+            tableName = instruction[2]
+            fieldValues = sub("[()]", "", instruction[-1]).split(",")
+            self.Insert(tableName, fieldValues)
+        elif instruction[0].lower() == "select":
+            tableName = instruction[2]
+            conditions = " ".join(instruction[4:])
+            print(self.Select(tableName, conditions))
+        elif instruction[0].lower() == "delete":
+            tableName = instruction[2]
+            conditions = " ".join(instruction[4:])
+            self.Delete(tableName, conditions)
+        elif instruction[0].lower() == "update":
+            tableName = instruction[1]
+            conditions = " ".join(instruction[3:-2])
+            fieldValues = instruction[-1]
+            self.Update(tableName, fieldValues, conditions)
+
     def Insert(self, tableName, values):
         filename = tableName + ".txt"
         if tableName in self.tables:
             fields = self.tables[tableName]
             if self.CheckInsertConditions(fields, values, tableName):
-                with open(filename, "a") as f:
-                    f.write("id " + " ".join(values) + "\n")
+                with open(filename, "r+") as f:
+                    lineIndexToWrite = len(f.readlines())
+                    id = lineIndexToWrite
+                    f.seek(0, 2)
+                    f.write(f'{id} {" ".join(values)}\n')
         else:
             print(f"There is no table with name {tableName}.")
 
@@ -162,11 +332,16 @@ class Database:
             if self.CheckFieldNamesValidity(fields, conditions):
                 collectedResults = self.FindCorrespondingData(tableName, conditions)
                 with open(filename, "r+") as f:
+                    firstLine = f.readline()
                     lines = f.readlines()
                     f.seek(0)
+                    f.write(firstLine)
+                    id = 1
                     for line in lines:
                         if not line.strip() in collectedResults:
-                            f.write(line)
+                            lineWithoutID = " ".join(line.split()[1:]) + "\n"
+                            f.write(f"{id} {lineWithoutID}")
+                            id += 1
                     f.truncate()
         else:
             print(f"There is no table with name {tableName}.")
@@ -175,7 +350,7 @@ class Database:
         if tableName in self.tables:
             fields = self.tables[tableName]
             if self.CheckFieldNamesValidity(fields, conditions):
-                collectedResults = self.FindCorrespondingData(conditions)
+                collectedResults = self.FindCorrespondingData(tableName, conditions)
                 return collectedResults
         else:
             print(f"There is no table with name {tableName}.")
@@ -187,15 +362,18 @@ class Database:
             if self.CheckFieldNamesValidity(
                 fields, conditions
             ) and self.CheckInsertConditions(fields, values, tableName):
-                collectedResults = self.FindCorrespondingData(conditions)
+                collectedResults = self.FindCorrespondingData(tableName, conditions)
                 with open(filename, "r+") as f:
+                    firstLine = f.readline()
                     lines = f.readlines()
                     f.seek(0)
-                    for line in lines:
+                    f.write(firstLine)
+                    for id, line in enumerate(lines, 1):
                         if line.strip() in collectedResults:
-                            f.write("id " + " ".join(values) + "\n")
+                            f.write(f'{id} {" ".join(values)}\n')
                         else:
-                            f.write(line)
+                            lineWithoutID = " ".join(line.split()[1:]) + "\n"
+                            f.write(f"{id} {lineWithoutID}")
                     f.truncate()
         else:
             print(f"There is no table with name {tableName}.")
@@ -203,8 +381,9 @@ class Database:
 
 db = Database()
 while True:
-    instruction = list(input("$ ").split())
-    if instruction[0] == "INSERT":
-        tableName = instruction[2]
-        values = sub("[()]", "", instruction[-1][:-1]).split(",")
-        db.Insert(tableName, values)
+    instruction = input(">>> ")
+    if instruction != "exit":
+        if db.CheckInstructionValidity(instruction):
+            db.FollowInstruction(instruction)
+    else:
+        break
