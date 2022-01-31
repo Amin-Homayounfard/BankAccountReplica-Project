@@ -49,7 +49,7 @@ class Database:
                 with open(fileName, "a") as f:
                     f.write(f'id {" ".join(fieldNames)}\n')
 
-    def CheckInsertConditions(self, fields, values, tableName):
+    def CheckInsertConditions(self, fields, values, tableName, linesToBeChangedIDs=[]):
         if not len(fields) == len(values):
             print("number of values and field must be equal.")
             return False
@@ -59,7 +59,10 @@ class Database:
                 with open(tableName + ".txt", "r") as f:
                     lines = f.read().splitlines()[1:]
                     for line in lines:
-                        if line.split()[i + 1] == fieldValue:
+                        if (
+                            line.split()[i + 1] == fieldValue
+                            and line.split()[0] not in linesToBeChangedIDs
+                        ):
                             print(f"{fieldValue} is already exist.")
                             return False
             if field.fieldType == "INTEGER" and not fieldValue.isdigit():
@@ -76,16 +79,16 @@ class Database:
                 print("Only True/False can be used as boolean values.")
                 return False
             elif field.fieldType == "TIMESTAMP":
-                if len(fieldValue.split("/")) != 3:
+                if len(fieldValue.split("-")) != 3:
                     print(
-                        "Timestamp type must have the following structure: month/day/year"
+                        "Timestamp type must have the following structure: year-month-day"
                     )
                     return False
-                month, day, year = fieldValue.split("/")
+                year, month, day = fieldValue.split("-")
                 if not month.isdigit() or not 1 <= int(month) <= 12:
                     print("Month value must be a digit between 1 to 12")
                     return False
-                if not day.isdigit() or not 1 <= int(day) <= 30:
+                if not day.isdigit() or not 1 <= int(day) <= 31:
                     print("Day value must be a digit between 1 to 31")
                     return False
                 if not year.isdigit():
@@ -384,8 +387,9 @@ class Database:
         if tableName in self.tables:
             fields = self.tables[tableName]
             collectedResults = self.Select(tableName, conditions)
+            linesToBeChangedIDs = [result.split()[0] for result in collectedResults]
             if collectedResults and self.CheckInsertConditions(
-                fields, values, tableName
+                fields, values, tableName, linesToBeChangedIDs
             ):
                 with open(filename, "r+") as f:
                     firstLine = f.readline()
@@ -403,11 +407,12 @@ class Database:
             print(f"There is no table with name {tableName}.")
 
 
-db = Database()
-while True:
-    instruction = input(">>> ")
-    if instruction != "exit":
-        if db.CheckInstructionValidity(instruction):
-            db.FollowInstruction(instruction)
-    else:
-        break
+if __name__ == "__main__":
+    db = Database()
+    while True:
+        instruction = input(">>> ")
+        if instruction != "exit":
+            if db.CheckInstructionValidity(instruction):
+                db.FollowInstruction(instruction)
+        else:
+            break

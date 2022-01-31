@@ -1,3 +1,0 @@
-id username password joined_at haveAccount
-1 amin amin.la 1/29/2022 False
-2 am22in amin.la 1/9/2022 False

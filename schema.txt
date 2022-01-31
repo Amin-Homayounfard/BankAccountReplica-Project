@@ -1,5 +1,22 @@
-user
-username UNIQUE CHAR(200)
-password CHAR(12)
-joined_at TIMESTAMP
-haveAccount BOOLEAN
+User
+name CHAR(50)
+nationalID UNIQUE INTEGER
+password CHAR(20)
+phoneNumber UNIQUE INTEGER
+email UNIQUE CHAR(50)
+joinedAt TIMESTAMP
+
+BankAccount
+type CHAR(20)
+number UNIQUE INTEGER
+alias CHAR(20)
+password CHAR(30)
+isFrequent BOOLEAN
+ownerNationalID INTEGER
+balance INTEGER
+
+Transactions
+sourceNumber INTEGER
+destinationNumber INTEGER
+amount INTEGER
+time TIMESTAMP
