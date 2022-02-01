@@ -9,9 +9,8 @@ joinedAt TIMESTAMP
 BankAccount
 type CHAR(20)
 number UNIQUE INTEGER
-alias CHAR(20)
+alias UNIQUE CHAR(20)
 password CHAR(30)
-isFrequent BOOLEAN
 ownerNationalID INTEGER
 balance INTEGER
 
@@ -20,3 +19,13 @@ sourceNumber INTEGER
 destinationNumber INTEGER
 amount INTEGER
 time TIMESTAMP
+
+Bills
+billingID UNIQUE INTEGER
+amount INTEGER
+paymentCode INTEGER
+
+FrequentlyUsedAccounts
+alias CHAR(20)
+number INTEGER
+ownerNationalID INTEGER
