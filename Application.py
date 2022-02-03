@@ -59,62 +59,97 @@ class Application:
             else:
                 return
 
-    @staticmethod
-    def CheckInputValidity(field, fieldValue, tableName=None):
-        if tableName is not None:
-            if field.isUnique and db.Select(
-                tableName, f'{field.fieldName}=="{fieldValue}"'
-            ):
-                print(f"{fieldValue} is already exist.")
-                return False
-        if field.fieldType == "INTEGER" and not fieldValue.isdigit():
-            print(f"{fieldValue} must be an integer.")
+    def IntegerCondition(string, *useless):
+        if not string.isdigit() and not string[1:].isdigit():
+            print("Input must be an integer.")
             return False
-        elif "CHAR" in field.fieldType:
-            legalCount = int(sub("[()]", "", field.fieldType.replace("CHAR", "")))
-            if len(fieldValue) > legalCount:
-                print(f"{fieldValue}'s number of characters exceeded {legalCount}.")
-                return False
         return True
 
-    @staticmethod
-    def FindCorrespondingField(fieldName, tableName):
+    def UniquenessCondition(fieldValue, fieldName, tableName):
+        if db.Select(tableName, f'{fieldName}=="{fieldValue}"'):
+            print(f"Input must be unique, {fieldValue} is already exists.")
+            return False
+        return True
+
+    def CharCondition(fieldValue, fieldName, tableName):
         for field in db.tables[tableName]:
             if field.fieldName == fieldName:
-                return field
+                field = field
+                break
+        legalCount = int(sub("[()]", "", field.fieldType.replace("CHAR", "")))
+        if len(fieldValue) > legalCount:
+            print(f"{fieldValue}'s number of characters exceeded {legalCount}.")
+            return False
+        return True
 
-    @classmethod
-    def ReceiveUserInput(cls, fieldName, tableName, purpose):
-        field = cls.FindCorrespondingField(fieldName, tableName)
+    def YesNoCondition(string, *useless):
+        if string not in ["1", "2"]:
+            return False
+        return True
+
+    def ReceiveUserInput(messsage, fieldName, tableName, *conditions):
         while True:
-            print(f"Enter your {fieldName}.")
+            print(messsage)
             userInput = input()
-            if purpose == "insert":
-                if cls.CheckInputValidity(field, userInput, tableName):
-                    return userInput
-            elif purpose == "select":
-                if cls.CheckInputValidity(field, userInput):
-                    return userInput
+            for condition in conditions:
+                if not condition(userInput, fieldName, tableName):
+                    break
+            else:
+                return userInput
+            continue
 
     @classmethod
     def SignUp(cls):
-        name = cls.ReceiveUserInput("name", "User", "insert")
-        nationalID = cls.ReceiveUserInput("nationalID", "User", "insert")
-        password = cls.ReceiveUserInput("password", "User", "insert")
-        phoneNumber = cls.ReceiveUserInput("phoneNumber", "User", "insert")
-        email = cls.ReceiveUserInput("email", "User", "insert")
+        name = cls.ReceiveUserInput(
+            "Enter your full name:",
+            "name",
+            "User",
+            cls.CharCondition,
+        )
+        nationalID = cls.ReceiveUserInput(
+            "Enter your national ID:",
+            "nationalID",
+            "User",
+            cls.UniquenessCondition,
+            cls.IntegerCondition,
+        )
+        password = cls.ReceiveUserInput(
+            "Enter your password:",
+            "password",
+            "User",
+            cls.UniquenessCondition,
+            cls.CharCondition,
+        )
+        phoneNumber = cls.ReceiveUserInput(
+            "Enter your phone number:",
+            "phoneNumber",
+            "User",
+            cls.UniquenessCondition,
+            cls.IntegerCondition,
+        )
+        email = cls.ReceiveUserInput(
+            "Enter your email:",
+            "email",
+            "User",
+            cls.UniquenessCondition,
+            cls.CharCondition,
+        )
         joinedAt = str(date.today())
         db.Insert("User", [name, nationalID, password, phoneNumber, email, joinedAt])
 
     @classmethod
     def SignIn(cls):
         while True:
-            nationalID = cls.ReceiveUserInput("nationalID", "User", "select")
-            password = cls.ReceiveUserInput("password", "User", "select")
+            nationalID = cls.ReceiveUserInput(
+                "Enter your national ID:", "nationalID", "User", cls.IntegerCondition
+            )
             collectedResult = db.Select("User", f'nationalID=="{nationalID}"')
             if not collectedResult:
                 print("National ID not exists.")
                 continue
+            password = cls.ReceiveUserInput(
+                "Enter your password:", "password", "User", cls.CharCondition
+            )
             collectedPassword = collectedResult[0].split()[3]
             if not password == collectedPassword:
                 print("Wrong password!")
@@ -130,11 +165,32 @@ class BankSystem:
 
     @staticmethod
     def OpenAnAccount():
-        accountType = Application.ReceiveUserInput("type", "BankAccount", "insert")
+        accountType = Application.ReceiveUserInput(
+            "Enter your account type:",
+            "type",
+            "BankAccount",
+            Application.CharCondition,
+        )
         number = "".join(str(randint(1, 9)) for _ in range(10))
-        alias = Application.ReceiveUserInput("alias", "BankAccount", "insert")
-        password = Application.ReceiveUserInput("password", "BankAccount", "insert")
-        balance = "0"
+        alias = Application.ReceiveUserInput(
+            "Enter your account alias:",
+            "alias",
+            "BankAccount",
+            Application.UniquenessCondition,
+            Application.CharCondition,
+        )
+        password = Application.ReceiveUserInput(
+            "Enter your account password:",
+            "password",
+            "BankAccount",
+            Application.CharCondition,
+        )
+        balance = Application.ReceiveUserInput(
+            "Enter the amount of money you want in your bank account:",
+            "balance",
+            "BankAccount",
+            Application.IntegerCondition,
+        )
         db.Insert(
             "BankAccount",
             [
@@ -146,14 +202,17 @@ class BankSystem:
                 balance,
             ],
         )
-        print(f"Your bank number is: {number}")
+        print(f"Your bank card code is: {number}")
 
     @staticmethod
-    def DisplayInformation(
-        condition=f'ownerNationalID=="{Application.ownerNationalID}"',
-    ):
-        accountsCollectedResult = db.Select("BankAccount", condition)
-        for i, account in enumerate(accountsCollectedResult):
+    def DisplayInformation(condition=None):
+        if condition is None:
+            accountsCollectedResult = db.Select(
+                "BankAccount", f'ownerNationalID=="{Application.ownerNationalID}"'
+            )
+        else:
+            accountsCollectedResult = db.Select("BankAccount", condition)
+        for i, account in enumerate(accountsCollectedResult, 1):
             balance = account.split()[-1]
             accountType = account.split()[1]
             number = account.split()[2]
@@ -174,62 +233,94 @@ class BankSystem:
     @staticmethod
     def MoneyTransfer():
         while True:
-            sourceNumber = Application.ReceiveUserInput(
-                "sourceNumber", "Transactions", "select"
+            userInput = Application.ReceiveUserInput(
+                "What method do you prefer to determine the source card?\n1. By alias\n2. By card number",
+                "",
+                "",
+                Application.YesNoCondition,
             )
-            password = Application.ReceiveUserInput("password", "BankAccount", "select")
-            sourceCollectedResult = db.Select(
-                "BankAccount",
-                f'number=="{sourceNumber}" AND ownerNationalID=="{Application.ownerNationalID}"',
-            )
+            if userInput == "1":
+                sourceAlias = Application.ReceiveUserInput(
+                    "Enter your account alias.",
+                    "alias",
+                    "BankAccount",
+                    Application.CharCondition,
+                )
+                sourceCollectedResult = db.Select(
+                    "BankAccount",
+                    f'alias=="{sourceAlias}" AND ownerNationalID=="{Application.ownerNationalID}"',
+                )
+            elif userInput == "2":
+                sourceNumber = Application.ReceiveUserInput(
+                    "Enter your account number.",
+                    "number",
+                    "BankAccount",
+                    Application.IntegerCondition,
+                )
+                sourceCollectedResult = db.Select(
+                    "BankAccount",
+                    f'number=="{sourceNumber}" AND ownerNationalID=="{Application.ownerNationalID}"',
+                )
             if not sourceCollectedResult:
                 print("Account number not exists.")
                 continue
+            sourceNumber = sourceCollectedResult[0].split()[2]
+            password = Application.ReceiveUserInput(
+                "Enter your account password.",
+                "password",
+                "BankAccount",
+                Application.CharCondition,
+            )
             collectedPassword = sourceCollectedResult[0].split()[4]
             if not password == collectedPassword:
                 print("Wrong password!")
                 continue
             break
         while True:
-            print(
-                "Do you want to select the destination account number from the most used account numbers? (y/n)"
+            userInput = Application.ReceiveUserInput(
+                "What method do you prefer to determine the destination card?\n1. Select the destination card number from the most frequently used numbers.\n2. Enter the new destination number.",
+                "",
+                "",
+                Application.YesNoCondition,
             )
-            userInput = input()
-            if not userInput in ["y", "n"]:
-                continue
-            if userInput == "y":
+            if userInput == "1":
                 print("Choose the number of one of the most used accounts below.")
                 frequentlyUsedCollectedResult = db.Select(
                     "FrequentlyUsedAccounts",
                     f'ownerNationalID=="{Application.ownerNationalID}"',
                 )
-                print(frequentlyUsedCollectedResult)
                 frequentlyUsedAccounts = []
-                for result in frequentlyUsedCollectedResult:
+                for i, result in enumerate(frequentlyUsedCollectedResult, 1):
                     frequentlyUsedAccounts.append(result.split()[2])
-                    print(f"{result.split()[1]}: {result.split()[2]}")
-                userInput = input()
-                if not userInput in frequentlyUsedAccounts:
+                    print(f"{i}: {result.split()[2]}")
+                userResponse = input()
+                if not userResponse in frequentlyUsedAccounts:
                     print("Your selection is not listed.")
                     continue
-                destinationNumber = userInput
-            elif userInput == "n":
+                destinationNumber = userResponse
+            elif userInput == "2":
                 destinationNumber = Application.ReceiveUserInput(
-                    "destinationNumber", "Transactions", "insert"
+                    "Enter destination card number.",
+                    "number",
+                    "BankAccount",
+                    Application.IntegerCondition,
                 )
-            moneyAmount = Application.ReceiveUserInput(
-                "amount", "Transactions", "insert"
-            )
-            happenedAt = str(date.today())
             destinationCollectedResult = db.Select(
                 "BankAccount", f'number=="{destinationNumber}"'
             )
             if not destinationCollectedResult:
                 print("Destination number not exists.")
                 continue
-            destinationCurrentBalance = int(
-                destinationCollectedResult[0][1:].split()[-1]
+            if destinationCollectedResult == sourceCollectedResult:
+                print("Can't transfer to same number.")
+                continue
+            moneyAmount = Application.ReceiveUserInput(
+                "Enter the amount you want to transfer.",
+                "amount",
+                "Transactions",
+                Application.IntegerCondition,
             )
+            happenedAt = str(date.today())
             sourceCurrentBalance = int(sourceCollectedResult[0][1:].split()[-1])
             if not sourceCurrentBalance >= int(moneyAmount):
                 print("Not enough money.")
@@ -241,7 +332,11 @@ class BankSystem:
             sourceUpdatedValues = sourceCollectedResult[0][1:].split()[:-1] + [
                 str(sourceCurrentBalance - int(moneyAmount))
             ]
+            print(sourceUpdatedValues)
             db.Update("BankAccount", sourceUpdatedValues, f'number=="{sourceNumber}"')
+            destinationCurrentBalance = int(
+                destinationCollectedResult[0][1:].split()[-1]
+            )
             destinationUpdatedValues = destinationCollectedResult[0][1:].split()[
                 :-1
             ] + [str(destinationCurrentBalance + int(moneyAmount))]
@@ -254,10 +349,12 @@ class BankSystem:
 
     @staticmethod
     def TransferRemainingMoney(sourceNumber, moneyAmount):
-        sourceCollectedResult = db.Select("BankAccount", f'number=="{sourceNumber}"')
         while True:
             destinationNumber = Application.ReceiveUserInput(
-                "destinationNumber", "Transactions", "insert"
+                "Enter the destination account number to which you want to deposit the remaining money:",
+                "number",
+                "BankAccount",
+                Application.IntegerCondition,
             )
             happenedAt = str(date.today())
             db.Insert(
@@ -273,17 +370,9 @@ class BankSystem:
             destinationCurrentBalance = int(
                 destinationCollectedResult[0][1:].split()[-1]
             )
-            sourceCurrentBalance = int(sourceCollectedResult[0][1:].split()[-1])
-            if not sourceCurrentBalance >= int(moneyAmount):
-                print("Not enough money.")
-                continue
-            sourceUpdatedValues = sourceCollectedResult[0][1:].split()[:-1] + [
-                str(sourceCurrentBalance - int(moneyAmount))
-            ]
             destinationUpdatedValues = destinationCollectedResult[0][1:].split()[
                 :-1
             ] + [str(destinationCurrentBalance + int(moneyAmount))]
-            db.Update("BankAccount", sourceUpdatedValues, f'number=="{sourceNumber}"')
             db.Update(
                 "BankAccount",
                 destinationUpdatedValues,
@@ -295,15 +384,21 @@ class BankSystem:
         while True:
             numbers = []
             collectedResults = []
-            print("How many numbers you want to mark as frequently used?")
-            n = input()
-            if not n.isdigit():
-                print("You must enter a didgit.")
-                continue
+            n = Application.ReceiveUserInput(
+                "How many numbers you want to mark as frequently used?",
+                "",
+                "",
+                Application.IntegerCondition,
+            )
             print("Enter numbers that you want to mark as frequently used.")
             for _ in range(int(n)):
                 numbers.append(
-                    Application.ReceiveUserInput("number", "BankAccount", "select")
+                    Application.ReceiveUserInput(
+                        "Enter the account number:",
+                        "number",
+                        "BankAccount",
+                        Application.IntegerCondition,
+                    )
                 )
             for number in numbers:
                 collectedResult = db.Select(
@@ -313,7 +408,9 @@ class BankSystem:
                 if not collectedResult:
                     break
                 collectedResults.append(collectedResult[0])
-            break
+            else:
+                break
+            continue
         for number, collectedResult in zip(numbers, collectedResults):
             alias = collectedResult.split()[3]
             db.Insert(
@@ -324,9 +421,17 @@ class BankSystem:
     def CloseAccount():
         while True:
             sourceNumber = Application.ReceiveUserInput(
-                "number", "BankAccount", "select"
+                "Enter your account number:",
+                "number",
+                "BankAccount",
+                Application.IntegerCondition,
             )
-            password = Application.ReceiveUserInput("password", "BankAccount", "select")
+            password = Application.ReceiveUserInput(
+                "Enter your account password:",
+                "password",
+                "BankAccount",
+                Application.CharCondition,
+            )
             sourceCollectedResult = db.Select(
                 "BankAccount", f'number=="{sourceNumber}"'
             )
@@ -345,26 +450,48 @@ class BankSystem:
 
     @classmethod
     def LoanRequest(cls):
-        while True:
-            print("How much money do you ask for?")
-            moneyAmount = input()
-            if not moneyAmount.isdigit():
-                continue
-            moneyAmount = int(moneyAmount)
-            break
-        while True:
-            print("How many periods do you intend to pay?")
-            periods = input()
-            if not periods.isdigit():
-                continue
-            periods = int(periods)
-            break
-        while True:
-            number = Application.ReceiveUserInput("number", "BankAccount", "select")
-            collectedResult = db.Select(
-                "BankAccount",
-                f'number=="{number}" AND ownerNationalID=="{Application.ownerNationalID}"',
+        moneyAmount = int(
+            Application.ReceiveUserInput(
+                "How much money do you ask for?", "", "", Application.IntegerCondition
             )
+        )
+        periods = int(
+            Application.ReceiveUserInput(
+                "How many periods do you intend to pay?",
+                "",
+                "",
+                Application.IntegerCondition,
+            )
+        )
+        while True:
+            userInput = Application.ReceiveUserInput(
+                "What method do you prefer to determine the source card?\n1. By card number\n2. By alias",
+                "",
+                "",
+                Application.YesNoCondition,
+            )
+            if userInput == "1":
+                number = Application.ReceiveUserInput(
+                    "Enter your account number:",
+                    "number",
+                    "BankAccount",
+                    Application.IntegerCondition,
+                )
+                collectedResult = db.Select(
+                    "BankAccount",
+                    f'number=="{number}" AND ownerNationalID=="{Application.ownerNationalID}"',
+                )
+            elif userInput == "2":
+                alias = Application.ReceiveUserInput(
+                    "Enter your account alias:",
+                    "alias",
+                    "BankAccount",
+                    Application.CharCondition,
+                )
+                collectedResult = db.Select(
+                    "BankAccount",
+                    f'alias=="{alias}" AND ownerNationalID=="{Application.ownerNationalID}"',
+                )
             if not collectedResult:
                 print("The entered card number is incorrect.")
                 continue
@@ -413,8 +540,18 @@ class BankSystem:
     @staticmethod
     def PayTheBill():
         while True:
-            billingID = Application.ReceiveUserInput("billingID", "Bills", "select")
-            paymentCode = Application.ReceiveUserInput("paymentCode", "Bills", "select")
+            billingID = Application.ReceiveUserInput(
+                "Enter the billing ID:",
+                "billingID",
+                "Bills",
+                Application.IntegerCondition,
+            )
+            paymentCode = Application.ReceiveUserInput(
+                "Enter the payment code:",
+                "paymentCode",
+                "Bills",
+                Application.IntegerCondition,
+            )
             billCollectedResult = db.Select("Bills", f'billingID=="{billingID}"')
             if not billCollectedResult:
                 print("Billing ID not exists.")
@@ -426,7 +563,12 @@ class BankSystem:
             break
         billAmount = int(billCollectedResult[0].split()[2])
         while True:
-            number = Application.ReceiveUserInput("number", "BankAccount", "select")
+            number = Application.ReceiveUserInput(
+                "Enter the account number with which you want to pay the bill:",
+                "number",
+                "BankAccount",
+                Application.IntegerCondition,
+            )
             collectedResult = db.Select(
                 "BankAccount",
                 f'number=="{number}" AND ownerNationalID=="{Application.ownerNationalID}"',
@@ -457,9 +599,11 @@ class BankSystem:
             userInput = input()
             if userInput == "1":
                 while True:
-                    print("Enter your current account alias.")
                     alias = Application.ReceiveUserInput(
-                        "alias", "BankAccount", "select"
+                        "Enter your current account alias.",
+                        "alias",
+                        "BankAccount",
+                        Application.CharCondition,
                     )
                     collectedResult = db.Select("BankAccount", f'alias=="{alias}"')
                     if not collectedResult:
@@ -474,9 +618,11 @@ class BankSystem:
 
             elif userInput == "3":
                 while True:
-                    print("Enter your current account alias.")
                     alias = Application.ReceiveUserInput(
-                        "alias", "BankAccount", "select"
+                        "Enter your current account alias.",
+                        "alias",
+                        "BankAccount",
+                        Application.CharCondition,
                     )
                     collectedResult = db.Select(
                         "BankAccount",
@@ -492,8 +638,13 @@ class BankSystem:
 
     @staticmethod
     def ChangeAlias(currentAccountInfo):
-        print("Enter your new account alias.")
-        newAlias = Application.ReceiveUserInput("alias", "BankAccount", "insert")
+        newAlias = Application.ReceiveUserInput(
+            "Enter your new account alias.",
+            "alias",
+            "BankAccount",
+            Application.CharCondition,
+            Application.UniquenessCondition,
+        )
         currentAlias = currentAccountInfo.split()[3]
         updatedValues = (
             currentAccountInfo.split()[1:3]
