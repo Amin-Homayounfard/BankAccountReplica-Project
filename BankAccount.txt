@@ -1,0 +1,6 @@
+id type number alias password ownerNationalID balance
+1 savings 2988172252 a1 banka1 001 0
+2 savings 9974138334 a2 banka2 001 162
+3 savings 1774548586 a3 banka3 001 42
+4 savings 9462728538 b1 bankb1 002 26
+5 savings 2654597358 b2 bankb2 002 40

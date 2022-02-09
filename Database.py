@@ -65,7 +65,9 @@ class Database:
                         ):
                             print(f"{fieldValue} is already exist.")
                             return False
-            if field.fieldType == "INTEGER" and not fieldValue.isdigit():
+            if field.fieldType == "INTEGER" and not (
+                fieldValue.isdigit() or fieldValue[1:].isdigit()
+            ):
                 print(f"{fieldValue} must be an integer.")
                 return False
             elif "CHAR" in field.fieldType:

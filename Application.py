@@ -63,6 +63,9 @@ class Application:
         if not string.isdigit() and not string[1:].isdigit():
             print("Input must be an integer.")
             return False
+        if not int(string) >= 0:
+            print("Input must be non-negative.")
+            return False
         return True
 
     def UniquenessCondition(fieldValue, fieldName, tableName):
@@ -79,6 +82,10 @@ class Application:
         legalCount = int(sub("[()]", "", field.fieldType.replace("CHAR", "")))
         if len(fieldValue) > legalCount:
             print(f"{fieldValue}'s number of characters exceeded {legalCount}.")
+            return False
+
+        if not len(fieldValue.split()) == 1:
+            print(f"illegal input.")
             return False
         return True
 
@@ -161,7 +168,7 @@ class Application:
 
 class BankSystem:
 
-    installmentDuration = 30
+    installmentDuration = 10
 
     @staticmethod
     def OpenAnAccount():
@@ -332,7 +339,6 @@ class BankSystem:
             sourceUpdatedValues = sourceCollectedResult[0][1:].split()[:-1] + [
                 str(sourceCurrentBalance - int(moneyAmount))
             ]
-            print(sourceUpdatedValues)
             db.Update("BankAccount", sourceUpdatedValues, f'number=="{sourceNumber}"')
             destinationCurrentBalance = int(
                 destinationCollectedResult[0][1:].split()[-1]
@@ -493,9 +499,10 @@ class BankSystem:
                     f'alias=="{alias}" AND ownerNationalID=="{Application.ownerNationalID}"',
                 )
             if not collectedResult:
-                print("The entered card number is incorrect.")
+                print("The entered card number/alias is incorrect.")
                 continue
             break
+        number = collectedResult[0].split()[2]
         currentBalance = int(collectedResult[0].split()[-1])
         updatedValues = collectedResult[0].split()[1:-1] + [
             str(currentBalance + moneyAmount)
@@ -506,21 +513,40 @@ class BankSystem:
             f'number=="{number}" AND ownerNationalID=="{Application.ownerNationalID}"',
         )
         eachLoanInstallmentAmount = moneyAmount // periods
+        finalInstallmentAmount = moneyAmount - (eachLoanInstallmentAmount * periods)
         t = Timer(
             cls.installmentDuration,
             cls.LoanInstallmentPayment,
-            args=[eachLoanInstallmentAmount, number, periods - 1],
+            args=[
+                eachLoanInstallmentAmount,
+                number,
+                periods - 1,
+                finalInstallmentAmount,
+            ],
         )
         t.start()
 
     @classmethod
-    def LoanInstallmentPayment(cls, installmentAmount, number, periods):
-        t = Timer(
-            cls.installmentDuration,
-            cls.LoanInstallmentPayment,
-            args=[installmentAmount, number, periods - 1],
-        )
-        t.start()
+    def LoanInstallmentPayment(cls, installmentAmount, number, periods, finalAmount):
+        if periods != 1:
+            t = Timer(
+                cls.installmentDuration,
+                cls.LoanInstallmentPayment,
+                args=[installmentAmount, number, periods - 1, finalAmount],
+            )
+            t.start()
+        else:
+            t = Timer(
+                cls.installmentDuration,
+                cls.LoanInstallmentPayment,
+                args=[
+                    installmentAmount + finalAmount,
+                    number,
+                    periods - 1,
+                    finalAmount,
+                ],
+            )
+            t.start()
         if periods == 0:
             t.cancel()
         collectedResult = db.Select(
@@ -605,7 +631,10 @@ class BankSystem:
                         "BankAccount",
                         Application.CharCondition,
                     )
-                    collectedResult = db.Select("BankAccount", f'alias=="{alias}"')
+                    collectedResult = db.Select(
+                        "BankAccount",
+                        f'alias=="{alias}" AND ownerNationalID=="{Application.ownerNationalID}"',
+                    )
                     if not collectedResult:
                         print("Alias not exists.")
                         continue

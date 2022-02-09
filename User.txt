@@ -1,0 +1,3 @@
+id name nationalID password phoneNumber email joinedAt
+1 u1 001 p1 1 moho1379@gmail.com 2022-02-04
+2 u2 002 p2 2 mastani.saleh@gmail.com 2022-02-04
