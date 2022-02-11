@@ -449,7 +449,8 @@ class BankSystem:
                 Application.CharCondition,
             )
             sourceCollectedResult = db.Select(
-                "BankAccount", f'number=="{sourceNumber}"'
+                "BankAccount",
+                f'number=="{sourceNumber}" AND ownerNationalID=="{Application.ownerNationalID}"',
             )
             if not sourceCollectedResult:
                 print("Account number not exists.")
