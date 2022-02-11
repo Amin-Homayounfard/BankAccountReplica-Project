@@ -182,135 +182,165 @@ class Database:
             return False
         instruction = instruction[:-1].split()
         if instruction[0] == "INSERT":
-            if not instruction[1] == "INTO":
+            try:
+                if not instruction[1] == "INTO":
+                    print(
+                        f"Insert instruction must have the following structure:\n{insertStructure}"
+                    )
+                    return False
+                if not instruction[-2] == "VALUES":
+                    print(
+                        f"Insert instruction must have the following structure:\n{insertStructure}"
+                    )
+                    return False
+                fieldValues = instruction[-1]
+                if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
+                    print(f"Field values must be wraped in parentheses.")
+                    return False
+            except:
                 print(
                     f"Insert instruction must have the following structure:\n{insertStructure}"
                 )
-                return False
-            if not instruction[-2] == "VALUES":
-                print(
-                    f"Insert instruction must have the following structure:\n{insertStructure}"
-                )
-                return False
-            fieldValues = instruction[-1]
-            if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
-                print(f"Field values must be wraped in parentheses.")
                 return False
 
         elif instruction[0] == "SELECT":
-            if not instruction[1] == "FROM":
+            try:
+                if not instruction[1] == "FROM":
+                    print(
+                        f"Select instruction must have the following structure:\n{selectStructure}"
+                    )
+                    return False
+                if not instruction[3] == "WHERE":
+                    print(
+                        f"Select instruction must have the following structure:\n{selectStructure}"
+                    )
+                    return False
+                instruction = " ".join(instruction)
+                conditionParts = instruction.split("WHERE")[1]
+                if not len(findall("\(", conditionParts)) == len(
+                    findall("\)", conditionParts)
+                ):
+                    print("Condition section parentheses are unbalanced.")
+                    return False
+                for part in conditionParts.split():
+                    part = sub("[()]", "", part)
+                    part = part.replace(" ", "")
+                    if "==" in part or "!=" in part:
+                        condition = split(r"==|!=", part)
+                        if not len(condition) == 2:
+                            print(
+                                f"Select instruction must have the following structure:\n{selectStructure}"
+                            )
+                            return False
+                        fieldValue = condition[-1]
+                        if not fieldValue.startswith('"') or not fieldValue.endswith(
+                            '"'
+                        ):
+                            print("Each field value must be wraped in quotation marks.")
+                            return False
+                    else:
+                        if not part == "AND" and not part == "OR":
+                            print("Only AND/OR can be used as logical expretions.")
+                            return False
+            except:
                 print(
                     f"Select instruction must have the following structure:\n{selectStructure}"
                 )
                 return False
-            if not instruction[3] == "WHERE":
-                print(
-                    f"Select instruction must have the following structure:\n{selectStructure}"
-                )
-                return False
-            instruction = " ".join(instruction)
-            conditionParts = instruction.split("WHERE")[1]
-            if not len(findall("\(", conditionParts)) == len(
-                findall("\)", conditionParts)
-            ):
-                print("Condition section parentheses are unbalanced.")
-                return False
-            for part in conditionParts.split():
-                part = sub("[()]", "", part)
-                part = part.replace(" ", "")
-                if "==" in part or "!=" in part:
-                    condition = split(r"==|!=", part)
-                    if not len(condition) == 2:
-                        print(
-                            f"Select instruction must have the following structure:\n{selectStructure}"
-                        )
-                        return False
-                    fieldValue = condition[-1]
-                    if not fieldValue.startswith('"') or not fieldValue.endswith('"'):
-                        print("Each field value must be wraped in quotation marks.")
-                        return False
-                else:
-                    if not part == "AND" and not part == "OR":
-                        print("Only AND/OR can be used as logical expretions.")
-                        return False
 
         elif instruction[0] == "DELETE":
-            if not instruction[1] == "FROM":
+            try:
+                if not instruction[1] == "FROM":
+                    print(
+                        f"Delete instruction must have the following structure:\n{deleteStructure}"
+                    )
+                    return False
+                if not instruction[3] == "WHERE":
+                    print(
+                        f"Delete instruction must have the following structure:\n{deleteStructure}"
+                    )
+                    return False
+                instruction = " ".join(instruction)
+                conditionParts = instruction.split("WHERE")[1]
+                if not len(findall("\(", conditionParts)) == len(
+                    findall("\)", conditionParts)
+                ):
+                    print("Condition section parentheses are unbalanced.")
+                    return False
+                for part in conditionParts.split():
+                    part = sub("[()]", "", part)
+                    part = part.replace(" ", "")
+                    if "==" in part or "!=" in part:
+                        condition = split(r"==|!=", part)
+                        if not len(condition) == 2:
+                            print(
+                                f"Delete instruction must have the following structure:\n{deleteStructure}"
+                            )
+                            return False
+                        fieldValue = condition[-1]
+                        if not fieldValue.startswith('"') or not fieldValue.endswith(
+                            '"'
+                        ):
+                            print("Each field value must be wraped in quotation marks.")
+                            return False
+                    else:
+                        if not part == "AND" and not part == "OR":
+                            print("Only AND/OR can be used as logical expretion.")
+                            return False
+            except:
                 print(
                     f"Delete instruction must have the following structure:\n{deleteStructure}"
                 )
                 return False
-            if not instruction[3] == "WHERE":
-                print(
-                    f"Delete instruction must have the following structure:\n{deleteStructure}"
-                )
-                return False
-            instruction = " ".join(instruction)
-            conditionParts = instruction.split("WHERE")[1]
-            if not len(findall("\(", conditionParts)) == len(
-                findall("\)", conditionParts)
-            ):
-                print("Condition section parentheses are unbalanced.")
-                return False
-            for part in conditionParts.split():
-                part = sub("[()]", "", part)
-                part = part.replace(" ", "")
-                if "==" in part or "!=" in part:
-                    condition = split(r"==|!=", part)
-                    if not len(condition) == 2:
-                        print(
-                            f"Select instruction must have the following structure:\n{deleteStructure}"
-                        )
-                        return False
-                    fieldValue = condition[-1]
-                    if not fieldValue.startswith('"') or not fieldValue.endswith('"'):
-                        print("Each field value must be wraped in quotation marks.")
-                        return False
-                else:
-                    if not part == "AND" and not part == "OR":
-                        print("Only AND/OR can be used as logical expretion.")
-                        return False
 
         elif instruction[0] == "UPDATE":
-            if not instruction[2] == "WHERE":
+            try:
+                if not instruction[2] == "WHERE":
+                    print(
+                        f"Update instruction must have the following structure:\n{updateStructure}"
+                    )
+                    return False
+                if not instruction[-2] == "VALUES":
+                    print(
+                        f"Update instruction must have the following structure:\n{updateStructure}"
+                    )
+                    return False
+                instruction = " ".join(instruction)
+                conditionParts, fieldValues = (
+                    split(r"WHERE|VALUES", instruction)[1],
+                    split(r"WHERE|VALUES", instruction)[2].replace(" ", ""),
+                )
+                if not len(findall("\(", conditionParts)) == len(
+                    findall("\)", conditionParts)
+                ):
+                    print("Condition section parentheses are unbalanced.")
+                    return False
+                for part in conditionParts.split():
+                    part = sub("[()]", "", part)
+                    if "==" in part or "!=" in part:
+                        condition = split(r"==|!=", part)
+                        if not len(condition) == 2:
+                            print(
+                                f"Update instruction must have the following structure:\n{updateStructure}"
+                            )
+                            return False
+                        fieldValue = condition[-1]
+                        if not fieldValue.startswith('"') or not fieldValue.endswith(
+                            '"'
+                        ):
+                            print("Each field value must be wraped in quotation marks.")
+                            return False
+                    else:
+                        if not part == "AND" and not part == "OR":
+                            print("Only AND/OR can be used as logical expretion.")
+                            return False
+                if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
+                    print(f"Field values must be wraped in parentheses.")
+                    return False
+            except:
                 print(
                     f"Update instruction must have the following structure:\n{updateStructure}"
                 )
-                return False
-            if not instruction[-2] == "VALUES":
-                print(
-                    f"Update instruction must have the following structure:\n{updateStructure}"
-                )
-                return False
-            instruction = " ".join(instruction)
-            conditionParts, fieldValues = (
-                split(r"WHERE|VALUES", instruction)[1],
-                split(r"WHERE|VALUES", instruction)[2].replace(" ", ""),
-            )
-            if not len(findall("\(", conditionParts)) == len(
-                findall("\)", conditionParts)
-            ):
-                print("Condition section parentheses are unbalanced.")
-                return False
-            for part in conditionParts.split():
-                part = sub("[()]", "", part)
-                if "==" in part or "!=" in part:
-                    condition = split(r"==|!=", part)
-                    if not len(condition) == 2:
-                        print(
-                            f"Select instruction must have the following structure:\n{updateStructure}"
-                        )
-                        return False
-                    fieldValue = condition[-1]
-                    if not fieldValue.startswith('"') or not fieldValue.endswith('"'):
-                        print("Each field value must be wraped in quotation marks.")
-                        return False
-                else:
-                    if not part == "AND" and not part == "OR":
-                        print("Only AND/OR can be used as logical expretion.")
-                        return False
-            if not fieldValues.startswith("(") or not fieldValues.endswith(")"):
-                print(f"Field values must be wraped in parentheses.")
                 return False
         else:
             print(
@@ -328,7 +358,10 @@ class Database:
         elif instruction[0] == "SELECT":
             tableName = instruction[2]
             conditions = " ".join(instruction[4:])
-            print(self.Select(tableName, conditions))
+            collectedResults = self.Select(tableName, conditions)
+            if collectedResults:
+                for result in collectedResults:
+                    print(result)
         elif instruction[0] == "DELETE":
             tableName = instruction[2]
             conditions = " ".join(instruction[4:])
@@ -414,7 +447,10 @@ if __name__ == "__main__":
     while True:
         instruction = input(">>> ")
         if instruction != "exit":
-            if db.CheckInstructionValidity(instruction):
-                db.FollowInstruction(instruction)
+            try:
+                if db.CheckInstructionValidity(instruction):
+                    db.FollowInstruction(instruction)
+            except:
+                continue
         else:
             break

@@ -13,51 +13,57 @@ class Application:
         self.MainMenu()
 
     def MainMenu(self):
-        while True:
-            print("Select a number.")
-            print("1. Sign up.")
-            print("2. Sign in.")
-            print("0. Exit.")
-            userInput = input(">>> ")
-            if userInput == "1":
-                self.SignUp()
-            elif userInput == "2":
-                self.SignIn()
-            else:
-                return
+        try:
+            while True:
+                print("Select a number.")
+                print("1. Sign up.")
+                print("2. Sign in.")
+                print("0. Exit.")
+                userInput = input(">>> ")
+                if userInput == "1":
+                    self.SignUp()
+                elif userInput == "2":
+                    self.SignIn()
+                else:
+                    return
+        except KeyboardInterrupt:
+            self.MainMenu()
 
     @staticmethod
     def BankingServiceMenu():
-        while True:
-            print("Select a number.")
-            print("1. Open an account.")
-            print("2. Display accounts information.")
-            print("3. Account managment.")
-            print("4. Mark the accounts as frequently used.")
-            print("5. Money transfer.")
-            print("6. Paying the bill")
-            print("7. Requesting a loan.")
-            print("8. Close account.")
-            print("0. Back to main menu.")
-            userInput = input(">>> ")
-            if userInput == "1":
-                BankSystem.OpenAnAccount()
-            elif userInput == "2":
-                BankSystem.DisplayInformation()
-            elif userInput == "3":
-                BankSystem.AccountManagmentMenu()
-            elif userInput == "4":
-                BankSystem.MarkAsFrequentlyUsed()
-            elif userInput == "5":
-                BankSystem.MoneyTransfer()
-            elif userInput == "6":
-                BankSystem.PayTheBill()
-            elif userInput == "7":
-                BankSystem.LoanRequest()
-            elif userInput == "8":
-                BankSystem.CloseAccount()
-            else:
-                return
+        try:
+            while True:
+                print("Select a number.")
+                print("1. Open an account.")
+                print("2. Display accounts information.")
+                print("3. Account managment.")
+                print("4. Mark the accounts as frequently used.")
+                print("5. Money transfer.")
+                print("6. Paying the bill")
+                print("7. Requesting a loan.")
+                print("8. Close account.")
+                print("0. Back to main menu.")
+                userInput = input(">>> ")
+                if userInput == "1":
+                    BankSystem.OpenAnAccount()
+                elif userInput == "2":
+                    BankSystem.DisplayInformation()
+                elif userInput == "3":
+                    BankSystem.AccountManagmentMenu()
+                elif userInput == "4":
+                    BankSystem.MarkAsFrequentlyUsed()
+                elif userInput == "5":
+                    BankSystem.MoneyTransfer()
+                elif userInput == "6":
+                    BankSystem.PayTheBill()
+                elif userInput == "7":
+                    BankSystem.LoanRequest()
+                elif userInput == "8":
+                    BankSystem.CloseAccount()
+                else:
+                    return
+        except KeyboardInterrupt:
+            Application.BankingServiceMenu()
 
     def IntegerCondition(string, *useless):
         if not string.isdigit() and not string[1:].isdigit():
@@ -269,7 +275,7 @@ class BankSystem:
                     f'number=="{sourceNumber}" AND ownerNationalID=="{Application.ownerNationalID}"',
                 )
             if not sourceCollectedResult:
-                print("Account number not exists.")
+                print("Account number/alias not exists.")
                 continue
             sourceNumber = sourceCollectedResult[0].split()[2]
             password = Application.ReceiveUserInput(
@@ -300,6 +306,9 @@ class BankSystem:
                 for i, result in enumerate(frequentlyUsedCollectedResult, 1):
                     frequentlyUsedAccounts.append(result.split()[2])
                     print(f"{i}: {result.split()[2]}")
+                if len(frequentlyUsedAccounts) == 0:
+                    print("You have no frequently used accounts.")
+                    continue
                 userResponse = input()
                 if not userResponse in frequentlyUsedAccounts:
                     print("Your selection is not listed.")
@@ -412,6 +421,7 @@ class BankSystem:
                     f'number=="{number}"',
                 )
                 if not collectedResult:
+                    print("The entered number not exists.")
                     break
                 collectedResults.append(collectedResult[0])
             else:
@@ -602,8 +612,11 @@ class BankSystem:
             if not collectedResult:
                 print("The entered card number is incorrect.")
                 continue
+            currentBalance = int(collectedResult[0].split()[-1])
+            if not currentBalance >= billAmount:
+                print("Not enough money.")
+                continue
             break
-        currentBalance = int(collectedResult[0].split()[-1])
         updatedValues = collectedResult[0].split()[1:-1] + [
             str(currentBalance - billAmount)
         ]
